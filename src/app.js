@@ -11,10 +11,12 @@ const templatepath = path.join(__dirname,'../template/views');
 const partialPath = path.join(__dirname,'../template/partials');
 
 const bcrypt = require('bcrypt'); //for securing passwword
-
+const cookie_Parser = require('cookie-parser') //for getting cookie data
+const authenticate = require('./middleware/auth');
 
 
 app.use(express.static(publicPath));
+app.use(cookie_Parser());
 app.set('view engine', 'hbs');
 app.set('views', templatepath)
 app.use(express.urlencoded({extended:false}));
@@ -34,6 +36,34 @@ app.get('/register', (req,res)=>{
 
 app.get('/login', (req,res)=>{
     res.render('login')
+})
+
+//adding a middleware for private pages
+app.get('/secret',authenticate,  async(req,res)=>{
+   //console.log(`${req.cookies.jwt_Login} is my cookie token`);
+    res.send();
+})
+
+//logout page
+app.get('/logout',authenticate, async(req,res)=>{
+ //   console.log(`${req.cookies.jwt_Login} is my cookie token`);
+    try {
+        
+        //using filter method for single logout
+        //req.user.tokens = req.user.tokens.filter((curr) => curr.token !== req.token); //req.token is the current token which we want to delete
+
+        //logout from all devices
+        req.user.tokens = [];
+        
+        res.clearCookie('jwt_Login');
+        await req.user.save(); //to save n update after deleting token
+        console.log('logout');
+        res.render('login');
+        
+
+    } catch (error) {
+        res.status(500).send(error);
+    }
 })
 
 
@@ -56,8 +86,10 @@ app.post('/register',express.json(), async(req,res)=>{
             })
       
             //middleware for generating token 
-            const token = await registerEmp.generateToken();
-            
+            //const token = await registerEmp.generateToken();
+           // console.log(token);
+
+          
             //middleware for password hashing will act before save
             const data = await registerEmp.save();
             res.status(201).render('index');
@@ -82,9 +114,23 @@ app.post('/login',express.json(), async(req,res)=>{
         const matched = await bcrypt.compare(passw,response[0].password);
         
         const token = await response[0].generateToken();
+        
+      //  console.log(`${token} is my token 
+      //  --------------------`)
+
+        
+        //generating cookie again
+        res.cookie('jwt_Login',token,{
+            expires: new Date(Date.now()+ 600000),
+            httpOnly:true
+        })
+       // console.log(`${req.cookies.jwt_Login} is my cookie`) //yeh kaam ni krega hm usi smay request kree h
+        // jab user next time aise pages ko open krna chahega tb hme verify krna h cookie token,,,,otherwise ye poorani cookie generate krega
+        //getting cookie data 
+
         if(matched)
         {
-           
+            
             res.status(201).render('userpage',{user: response[0].firstname});
         }
         else{

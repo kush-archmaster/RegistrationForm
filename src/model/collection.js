@@ -26,8 +26,7 @@ const empSchema = new mongoose.Schema({
         required: true,
     },
     passwordConfirmation:{
-        type: String,
-        required: true,
+        type: String
     },
     tokens: [{
          
@@ -44,15 +43,15 @@ empSchema.methods.generateToken = async function(){
     try{
        //process.env.SECRET_KEY is given the value of secret key 
         const token =  await jwt.sign({_id: this._id.toString()}, process.env.SECRET_KEY);  //since this._id is ObjectIds
-        this.tokens = this.tokens.concat({token}) //token:token
-        console.log(token);
-        //now we will save it in the database and will wait for this.save
-
-
-    }catch(err){
-        console.log(err);
+        this.tokens = this.tokens.concat({token}); //token:token
+        await this.save();  //saves new token inside the original doc
+        return token;
         
-}
+        //now we will save it in the database and will wait for this.save
+    }catch(err){
+        res.send(err);
+        console.log('error part is'+err);
+    }
 }
 
 
